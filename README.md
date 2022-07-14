@@ -17,9 +17,9 @@ aql = src.aql.Items(
     ARTIFACTORY_API_KEY)
 
 cursor = aql.find({
-                "repo": "docker-dev-local",
-                "name": {"$eq":"manifest.json"},
-                "stat.downloaded": {"$before":"4y"}})
+    "repo": "docker-dev-local",
+    "name": {"$eq":"manifest.json"},
+    "stat.downloaded": {"$before":"4y"}})
 ```
 
 ### Use artifacts and storage like API calls to retrieve top level repositories
