@@ -4,6 +4,7 @@ from enum import Enum
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import List, Optional, TYPE_CHECKING, Union
+from requests import exceptions
 
 from hurry.filesize import size
 
@@ -413,6 +414,28 @@ class Directory(ParentMixin):
 
         return file_size
 
+    def delete(self) -> bool:
+        """Delete the directory from Artifactory
+
+        Returns:
+            True if object deleted successfully
+            False if object failed to be removed
+        """
+        self.logger.info(
+            "Deleting Artifactory directory %s/%s",
+            self.repo,
+            self.path)
+        url_parts = [
+            self.connection.base_url, self.repo, self.path]
+
+        url = '/'.join(url_parts)
+
+        response = self.connection.session.delete(url, timeout=self.connection.session_timeout)
+
+        if response.ok:
+            return True
+
+        return False
 
 class Repository(Directory):
     """Methods to represent a repository in Artifactory"""
