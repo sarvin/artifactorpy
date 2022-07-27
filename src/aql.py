@@ -1,39 +1,21 @@
 """Python representation of aql query language"""
 import logging
 import json
-from typing import List, Type
+from typing import List, TYPE_CHECKING, Optional
 
-import requests
-
-from . import tools
 from . import resource
 
+if TYPE_CHECKING:
+    from . import tools
 
-class Items():
-    """item.find aql query class"""
-    logger = logging.getLogger(__name__)
-
-    def __init__(self, base_url: str, api_key: str):
-        session = requests.Session()
-        headers = {"X-JFrog-Art-Api": api_key}
-        session.headers.update(headers)
-
-        self.connection = tools.Connection(session=session, base_url=base_url)
-
-    def find(self, query: dict) -> 'FileCursor':
-        json_query = json.dumps(query)
-        json_query = f"items.find({json_query})"
-
-        cursor = FileCursor(self.connection, resource.File, json_query)
-
-        return cursor
 
 class FileCursor():
     """Cursor for aql file queries. Split out so we can support .include().sort() etc"""
-    def __init__(self, connection: 'tools.Connection', api_class: Type[resource.File], query: str):
+    logger = logging.getLogger(__name__)
+
+    def __init__(self, connection: 'tools.Connection'):
         self.connection = connection
-        self.api_class = api_class
-        self.query = query
+        self.query: Optional[str] = None
         self.index = -1
         self.json = None
 
@@ -53,12 +35,20 @@ class FileCursor():
                 path = '/'.join([json_resource['path'], json_resource['name']])
                 del json_resource['path']
 
-                api_resource = self.api_class(
+                api_resource = resource.File(
                     connection=self.connection,
                     path=path,
                     **json_resource)
 
                 return api_resource
+
+    def find(self, query: dict) -> 'FileCursor':
+        json_query = json.dumps(query)
+        json_query = f"items.find({json_query})"
+
+        self.query = json_query
+
+        return self
 
     def run_query(self):
         url_parts = [
@@ -71,6 +61,7 @@ class FileCursor():
         response.raise_for_status()
 
         self.json = response.json()
+        self.logger.debug("range %s", self.json['range'])
 
         self.index = -1
 

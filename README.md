@@ -10,16 +10,25 @@ ARTIFACTORY_API_KEY: API key for the user in the Artifactory instance
 
 ### Use AQL to find files:
 
+Access to the aql item domain currently granted through ArtifactsAndStorage but I intend to move AQL queries into their own class.
+
+A generator is returned by the find query.
 ```python
-import src.aql
-aql = src.aql.Items(
+import src.artifactory
+api = src.artifactory.ArtifactsAndStorage(
     ARTIFACTORY_URL,
     ARTIFACTORY_API_KEY)
 
-cursor = aql.find({
-    "repo": "docker-dev-local",
+cursor = api.item().find({
+    "repo": "docker",
     "name": {"$eq":"manifest.json"},
     "stat.downloaded": {"$before":"4y"}})
+
+file = next(cursor)
+
+# or
+
+files = [file for file in cursor]
 ```
 
 ### Use artifacts and storage like API calls to retrieve top level repositories

@@ -92,3 +92,82 @@ class ArtifactsAndStorage(unittest.TestCase):
         for repository in repositories:
             with self.subTest(repository=repository):
                 self.assertIsInstance(repository, src.resource.Repository)
+
+    @patch('src.artifactory.requests')
+    def test_item(self, requests):
+        ### Arrange
+        base_url = "".join(random.choices(string.ascii_lowercase + string.digits, k=10))
+        api_key = "".join(random.choices(string.ascii_lowercase + string.digits, k=10))
+
+        artifactory_api = src.artifactory.ArtifactsAndStorage(base_url, api_key)
+
+        ### Act
+        cursor = artifactory_api.item()
+
+        ### Assert
+        self.assertIsInstance(cursor, src.aql.FileCursor)
+
+    @patch('src.artifactory.requests')
+    def test_item_with_find_query(self, requests):
+        """calling find on the curser returned from item method
+        returns two file objects
+        """
+        ### Arrange
+        base_url = "".join(random.choices(string.ascii_lowercase + string.digits, k=10))
+        api_key = "".join(random.choices(string.ascii_lowercase + string.digits, k=10))
+
+        query = {
+            "repo": "docker-dev-local",
+            "name": {"$eq":"manifest.json"},
+            "stat.downloaded": {"$before":"4y"}}
+
+        response_json = {
+            'range': {
+                'end_pos': 2,
+                'start_pos': 0,
+                'total': 2
+            },
+            'results': [
+                {
+                    'created': '2018-07-06T20:57:45.614Z',
+                    'created_by': 'bud@manley',
+                    'modified': '2018-07-06T20:57:45.546Z',
+                    'modified_by': 'bud@manley',
+                    'name': 'manifest.json',
+                    'path': 'product_name/version1/foo',
+                    'repo': 'docker',
+                    'size': 1576,
+                    'type': 'file',
+                    'updated': '2018-07-06T20:57:45.546Z'},
+                {
+                    'created': '2018-07-06T20:57:45.614Z',
+                    'created_by': 'bud@manley',
+                    'modified': '2018-07-06T20:57:45.546Z',
+                    'modified_by': 'bud@manley',
+                    'name': 'manifest.json',
+                    'path': 'product_name/version2/foo',
+                    'repo': 'docker',
+                    'size': 1576,
+                    'type': 'file',
+                    'updated': '2018-07-06T20:57:45.546Z'}]}
+
+        session = requests.Session.return_value
+        session.post.return_value.json.return_value = response_json
+
+        artifactory_api = src.artifactory.ArtifactsAndStorage(base_url, api_key)
+
+        cursor = artifactory_api.item()
+        cursor = cursor.find(query)
+
+        ### Act
+        files = [file for file in cursor]
+
+        ### Assert
+        self.assertEqual(len(files), 2)
+        session.post.assert_called_once_with(
+            f'{base_url}/api/search/aql',
+            data='items.find({"repo": "docker-dev-local", "name": {"$eq": "manifest.json"}, "stat.downloaded": {"$before": "4y"}})')
+        session.post.return_value.json.assert_called_once()
+        for file in files:
+            with self.subTest(file=file):
+                self.assertIsInstance(file, src.resource.File)

@@ -5,6 +5,7 @@ import requests
 
 from . import tools
 from . import resource
+from . import aql
 
 
 class _Base(): # pylint: disable=too-few-public-methods
@@ -39,9 +40,14 @@ class ArtifactsAndStorage(_Base, resource.RepositoriesMixin):
 
         url = '/'.join(url_parts)
 
-        response = self.connection.session.get(url)
+        response = self.connection.session.get(url, timeout=self.connection.session_timeout)
 
         directory = resource.Directory(self.connection, repository_key, path)
         directory._context = response.json() # pylint: disable=protected-access
 
         return directory
+
+    def item(self) -> aql.FileCursor:
+        file_cursor = aql.FileCursor(connection=self.connection)
+
+        return file_cursor
