@@ -11,6 +11,7 @@ from hurry.filesize import size
 if TYPE_CHECKING:
     from . import tools
 
+
 class RepositoryType(Enum):
     """Describes the types of repositories in Artifactory"""
     LOCAL = 'local'
@@ -437,6 +438,7 @@ class Directory(ParentMixin):
 
         return False
 
+
 class Repository(Directory):
     """Methods to represent a repository in Artifactory"""
     logger = logging.getLogger(__name__)
@@ -542,7 +544,18 @@ class File(SimpleNamespace, ParentMixin):
 
         url = '/'.join(url_parts)
 
-        response = self.connection.session.get(url, params='stats')
+        response = self.connection.session.get(
+            url,
+            params='stats',
+            timeout=self.connection.session_timeout)
+        try:
+            response.raise_for_status()
+        except exceptions.HTTPError as err:
+            if response.status_code == 404:
+
+                raise exceptions.HTTPError(
+                    "This request fails for files in virtual repos: " + err.args[0],
+                    response=err.response) from err
 
         file_statistics = response.json()
 
